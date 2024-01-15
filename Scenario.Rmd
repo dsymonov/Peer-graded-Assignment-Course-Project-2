@@ -1,0 +1,143 @@
+> library(dplyr)
+> 
+> url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+> download.file(url, "repdata%2Fdata%2FStormData.csv.bz2")
+trying URL 'https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2'
+Content type 'application/bzip2' length 49177144 bytes (46.9 MB)
+downloaded 46.9 MB
+
+> dataset <- read.csv("repdata%2Fdata%2FStormData.csv.bz2", header = TRUE, sep = ",")
+> 
+> dataset$PROPDMGEXP <- suppressWarnings(case_when(
++     dataset$PROPDMGEXP %in% c('K', 'k') ~ 3,
++     dataset$PROPDMGEXP %in% c('M', 'm') ~ 6,
++     dataset$PROPDMGEXP %in% c('B', 'b') ~ 9,
++     dataset$PROPDMGEXP %in% c('H', 'h') ~ 2,
++     !is.na(as.numeric(dataset$PROPDMGEXP)) ~ as.numeric(dataset$PROPDMGEXP),
++     dataset$PROPDMGEXP %in% c("", "-", "?", "+") ~ 0,
++     TRUE ~ 0
++ ))
+> 
+> dataset$CROPDMGEXP <- suppressWarnings(case_when(
++     dataset$CROPDMGEXP %in% c('K', 'k') ~ 3,
++     dataset$CROPDMGEXP %in% c('M', 'm') ~ 6,
++     dataset$CROPDMGEXP %in% c('B', 'b') ~ 9,
++     dataset$CROPDMGEXP %in% c('H', 'h') ~ 2,
++     !is.na(as.numeric(dataset$CROPDMGEXP)) ~ as.numeric(dataset$CROPDMGEXP),
++     dataset$CROPDMGEXP %in% c("", "-", "?", "+") ~ 0,
++     TRUE ~ 0
++ ))
+> 
+> dataset$CROPDMG<-dataset$CROPDMG*10**dataset$CROPDMGEXP
+> dataset$PROPDMG<-dataset$PROPDMG*10**dataset$PROPDMGEXP
+> datasetByHealthHazard<- dataset %>% group_by(EVTYPE) %>% summarise(FATALITIES=sum(FATALITIES),INJURIES=sum(INJURIES))
+> datasetByFatalities<-datasetByHealthHazard[order(datasetByHealthHazard$FATALITIES,decreasing=TRUE),]
+> datasetByInjuries<-datasetByHealthHazard[order(datasetByHealthHazard$INJURIES,decreasing=TRUE),]
+> datasetByEcoDamage<- dataset%>% group_by(EVTYPE) %>% summarise(CROPDMG=sum(CROPDMG),PROPDMG=sum(PROPDMG))
+> head(datasetByEcoDamage)
+# A tibble: 6 × 3
+  EVTYPE                  CROPDMG PROPDMG
+  <chr>                     <dbl>   <dbl>
+1 "   HIGH SURF ADVISORY"       0  200000
+2 " COASTAL FLOOD"              0       0
+3 " FLASH FLOOD"                0   50000
+4 " LIGHTNING"                  0       0
+5 " TSTM WIND"                  0 8100000
+6 " TSTM WIND (G45)"            0    8000
+> 
+> datasetByCropDamage<-datasetByEcoDamage[order(datasetByEcoDamage$CROPDMG,decreasing=TRUE),]
+> datasetByPropDamage<-datasetByEcoDamage[order(datasetByEcoDamage$PROPDMG,decreasing=TRUE),]
+> datasetByFatalities<-head(datasetByFatalities,5)
+> print(datasetByFatalities)
+# A tibble: 5 × 3
+  EVTYPE         FATALITIES INJURIES
+  <chr>               <dbl>    <dbl>
+1 TORNADO              5633    91346
+2 EXCESSIVE HEAT       1903     6525
+3 FLASH FLOOD           978     1777
+4 HEAT                  937     2100
+5 LIGHTNING             816     5230
+> 
+> datasetByInjuries<-head(datasetByInjuries,5)
+> print(datasetByInjuries)
+# A tibble: 5 × 3
+  EVTYPE         FATALITIES INJURIES
+  <chr>               <dbl>    <dbl>
+1 TORNADO              5633    91346
+2 TSTM WIND             504     6957
+3 FLOOD                 470     6789
+4 EXCESSIVE HEAT       1903     6525
+5 LIGHTNING             816     5230
+> 
+> dplyr::combine
+function (...) 
+{
+    lifecycle::deprecate_warn("1.0.0", "combine()", "vctrs::vec_c()", 
+        always = TRUE)
+    args <- list2(...)
+    if (length(args) == 1 && is.list(args[[1]])) {
+        args <- args[[1]]
+    }
+    args <- keep(args, function(.x) !is.null(.x))
+    names(args) <- NULL
+    if (length(args) == 0) {
+        logical()
+    }
+    else {
+        vec_c(!!!args)
+    }
+}
+<bytecode: 0x00000261cdd8ef78>
+<environment: namespace:dplyr>
+> library(ggplot2)
+> library(dplyr)
+> library(gridExtra)
+> 
+> 
+> p1 <- ggplot(data=datasetByFatalities,
++              aes(x=reorder(EVTYPE, FATALITIES), y=FATALITIES, fill=EVTYPE))+
++     geom_bar(stat="identity") +
++     coord_flip() +
++     ylab("Total number of FATALITIES") +
++     xlab("Event type")
+> p2 <- ggplot(data=datasetByInjuries,
++              aes(x=reorder(EVTYPE, INJURIES), y=INJURIES, fill=EVTYPE)) +
++     geom_bar(stat="identity") +
++     coord_flip() + 
++     ylab("Total number of INJURIES") +
++     xlab("Event type")
+> grid.arrange(p1, p2,nrow=2)
+> datasetByPropDamage<-head(datasetByPropDamage,5)
+> print(datasetByPropDamage)
+# A tibble: 5 × 3
+  EVTYPE               CROPDMG       PROPDMG
+  <chr>                  <dbl>         <dbl>
+1 FLOOD             5661968450 144657709807 
+2 HURRICANE/TYPHOON 2607872800  69305840000 
+3 TORNADO            414953270  56947380676.
+4 STORM SURGE             5000  43323536000 
+5 FLASH FLOOD       1421317100  16822673978.
+> datasetByCropDamage<-head(datasetByCropDamage,5)
+> print(datasetByCropDamage)
+# A tibble: 5 × 3
+  EVTYPE          CROPDMG       PROPDMG
+  <chr>             <dbl>         <dbl>
+1 DROUGHT     13972566000   1046106000 
+2 FLOOD        5661968450 144657709807 
+3 RIVER FLOOD  5029459000   5118945500 
+4 ICE STORM    5022113500   3944927860 
+5 HAIL         3025954473  15735267513.
+> p3 <- ggplot(data=datasetByPropDamage,
++              aes(x=reorder(EVTYPE, PROPDMG), y=PROPDMG, fill=EVTYPE))+
++     geom_bar(stat="identity") +
++     coord_flip() +
++     ylab("Total Value of Property Damage Dollars.") +
++     xlab("Event type")
+> p4 <- ggplot(data=datasetByCropDamage,
++              aes(x=reorder(EVTYPE, CROPDMG), y=CROPDMG, fill=EVTYPE)) +
++     geom_bar(stat="identity") +
++     coord_flip() + 
++     ylab("Total Value of Crop Damage Dollars.") +
++     xlab("Event type")
+> grid.arrange(p3, p4,nrow=2, top="Economic Impact of Weather")
+> 
